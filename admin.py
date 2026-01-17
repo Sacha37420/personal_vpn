@@ -18,6 +18,7 @@ class AdminInterface:
     def setup_routes(self):
         @self.app.route('/')
         def index():
+            from flask import request
             users = []
             for username in self.user_manager.list_users():
                 user_info = self.user_manager.get_user(username)
@@ -27,28 +28,60 @@ class AdminInterface:
                     'cert_file': user_info['cert_file'],
                     'key_file': user_info['key_file']
                 })
+            host = request.host
             html = """
             <html>
             <head>
                 <title>Personal VPN Admin</title>
                 <style>
                     body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
-                    h1 { color: #333; }
+                    .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                    h1 { color: #333; text-align: center; }
                     h2 { color: #555; border-bottom: 2px solid #ddd; padding-bottom: 5px; }
                     ul { list-style-type: none; padding: 0; }
-                    li { background: white; margin: 10px 0; padding: 15px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                    li { background: #f9f9f9; margin: 10px 0; padding: 15px; border-radius: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
                     .user-info { margin-top: 10px; }
                     .user-info strong { color: #007bff; }
-                    form { background: white; padding: 20px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin: 20px 0; }
-                    input[type="text"], input[type="file"] { padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 3px; width: 100%; }
+                    form { background: #f9f9f9; padding: 20px; border-radius: 5px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); margin: 20px 0; }
+                    input[type="text"], input[type="file"] { padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 3px; width: 100%; box-sizing: border-box; }
                     button { background: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 3px; cursor: pointer; }
                     button:hover { background: #0056b3; }
                     .download-link { color: #28a745; text-decoration: none; }
                     .download-link:hover { text-decoration: underline; }
+                    .connection-info { background: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0; }
+                    .code { background: #f8f9fa; padding: 10px; border-radius: 3px; font-family: monospace; margin: 5px 0; word-wrap: break-word; }
                 </style>
             </head>
             <body>
+                <div class="container">
                 <h1>Personal VPN Administration</h1>
+                
+                <div class="connection-info">
+                    <h2>Connexion Client</h2>
+                    <p><strong>Hôte :</strong> {{ host }}</p>
+                    <p><strong>Port VPN :</strong> 1194</p>
+                    <p><strong>Instructions :</strong></p>
+                    <div class="code">python client.py &lt;username&gt; --host {{ host }}</div>
+                    <p>Exemples :</p>
+                    <div class="code">python client.py alice --host {{ host }}</div>
+                    <div class="code">python client.py bob --host {{ host }}</div>
+                    
+                    <h3>Configuration des certificats</h3>
+                    <p>Les certificats sont générés automatiquement lors de la première connexion. Si vous voulez les configurer manuellement :</p>
+                    <ol>
+                        <li>Téléchargez le certificat et la clé de l'utilisateur depuis la liste ci-dessus</li>
+                        <li>Créez un dossier <code>users/&lt;username&gt;</code> côté client</li>
+                        <li>Placez les fichiers :
+                            <ul>
+                                <li><code>&lt;username&gt;.crt</code> : Certificat client</li>
+                                <li><code>&lt;username&gt;.key</code> : Clé privée client</li>
+                                <li><code>ca.crt</code> : Certificat de l'autorité (téléchargeable <a href="/download/ca">ici</a>)</li>
+                            </ul>
+                        </li>
+                        <li>Lancez le client : <code>python client.py &lt;username&gt;</code></li>
+                    </ol>
+                </div>
+                
                 <h2>Utilisateurs existants</h2>
                 <ul>
                 {% for user in users %}
@@ -79,10 +112,11 @@ class AdminInterface:
                     <label>Clé (.key): <input type="file" name="key" accept=".key" required></label><br>
                     <button type="submit">Déposer</button>
                 </form>
+                </div>
             </body>
             </html>
             """
-            return render_template_string(html, users=users)
+            return render_template_string(html, users=users, host=host)
 
         @self.app.route('/create_user', methods=['POST'])
         def create_user():
@@ -175,6 +209,14 @@ class AdminInterface:
                     content = f.read()
                 return f"<pre>{content}</pre>"
             return jsonify({'error': 'Fichier non trouvé'}), 404
+
+        @self.app.route('/download/ca')
+        def download_ca():
+            if os.path.exists('ca.crt'):
+                with open('ca.crt', 'r') as f:
+                    content = f.read()
+                return f"<pre>{content}</pre>"
+            return "CA non trouvé", 404
 
     def run(self):
         print(f"Admin interface running on port {self.port}")
