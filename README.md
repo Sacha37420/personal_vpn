@@ -15,8 +15,7 @@ Un VPN Python sécurisé avec authentification par certificats clients.
 - `users/` : Dossiers des utilisateurs avec leurs certificats
 - `generate_certs.py` : Script de génération des certificats
 - `install_npcap.py` : Script d'installation automatique de Npcap (Windows)
-- `test_installer.py` : Script de test de l'installateur Npcap
-- `host.py`, `client.py`, `test.py` : Scripts de lancement
+- `host.py`, `client.py` : Scripts de lancement
 
 ## Fonctionnalités
 - Connexion chiffrée SSL/TLS
@@ -53,9 +52,6 @@ Le script détecte automatiquement si Npcap est installé et propose de l'instal
 
 ### Tests
 ```bash
-# Tester l'installateur Npcap (sans installation réelle)
-python test_installer.py
-
 # Tester la génération de certificats
 python generate_certs.py
 
@@ -97,11 +93,6 @@ python client.py root --host localhost
   python client.py <username>
   ```
   Exemple : `python client.py root`
-
-- **Test automatique :**
-  ```bash
-  python test.py
-  ```
 
 ## Sécurité
 - Les connexions sont chiffrées avec TLS
