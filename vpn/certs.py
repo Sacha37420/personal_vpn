@@ -7,12 +7,15 @@ from cryptography.hazmat.backends import default_backend
 import datetime
 
 class CertificateManager:
-    def __init__(self, ca_cert_file='ca.crt', ca_key_file='ca.key'):
+    def __init__(self, ca_cert_file='certs/ca.crt', ca_key_file='certs/ca.key'):
         self.ca_cert_file = ca_cert_file
         self.ca_key_file = ca_key_file
 
     def generate_ca_cert(self):
         """Génère le certificat et la clé de l'Autorité de Certification (CA)"""
+        # Créer le dossier certs s'il n'existe pas
+        os.makedirs(os.path.dirname(self.ca_cert_file), exist_ok=True)
+        
         # Clé privée CA
         ca_key = rsa.generate_private_key(
             public_exponent=65537,
@@ -54,8 +57,11 @@ class CertificateManager:
         
         return ca_key, ca_cert
 
-    def generate_server_cert(self, ca_key, ca_cert, server_cert_file='server.crt', server_key_file='server.key'):
+    def generate_server_cert(self, ca_key, ca_cert, server_cert_file='certs/server.crt', server_key_file='certs/server.key'):
         """Génère le certificat et la clé pour le serveur"""
+        # Créer le dossier certs s'il n'existe pas
+        os.makedirs(os.path.dirname(server_cert_file), exist_ok=True)
+        
         # Clé privée serveur
         server_key = rsa.generate_private_key(
             public_exponent=65537,

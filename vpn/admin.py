@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, render_template_string, redirect
-from user_manager import UserManager
-from certs import CertificateManager
+from .user_manager import UserManager
+from .certs import CertificateManager
 import threading
 import os
 import shutil
@@ -63,8 +63,8 @@ class AdminInterface:
                     <p><strong>Instructions :</strong></p>
                     <div class="code">python client.py &lt;username&gt; --host {{ host }}</div>
                     <p>Exemples :</p>
-                    <div class="code">python client.py alice --host {{ host }}</div>
-                    <div class="code">python client.py bob --host {{ host }}</div>
+                    <div class="code">python client.py root --host {{ host }}</div>
+                    <div class="code">python client.py invite --host {{ host }}</div>
                     
                     <h3>Configuration des certificats</h3>
                     <p>Les certificats sont générés automatiquement lors de la première connexion. Si vous voulez les configurer manuellement :</p>
@@ -212,8 +212,8 @@ class AdminInterface:
 
         @self.app.route('/download/ca')
         def download_ca():
-            if os.path.exists('ca.crt'):
-                with open('ca.crt', 'r') as f:
+            if os.path.exists('certs/ca.crt'):
+                with open('certs/ca.crt', 'r') as f:
                     content = f.read()
                 return f"<pre>{content}</pre>"
             return "CA non trouvé", 404

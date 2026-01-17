@@ -1,7 +1,6 @@
 import os
 import json
-from certs import CertificateManager
-from user_manager import UserManager
+from vpn import CertificateManager, UserManager
 
 def create_users_json(users_list, user_manager):
     """Crée le fichier users.json avec la liste des utilisateurs"""
@@ -13,7 +12,7 @@ def create_users_json(users_list, user_manager):
 
 if __name__ == "__main__":
     # Liste des utilisateurs à créer
-    users_list = ["alice", "bob", "charlie"]  # Modifiez cette liste selon vos besoins
+    users_list = ["root", "invite"]  # Modifiez cette liste selon vos besoins
     
     cert_manager = CertificateManager()
     user_manager = UserManager()
@@ -34,7 +33,7 @@ if __name__ == "__main__":
     
     print("Certificats générés avec succès !")
     print("Fichiers créés :")
-    print("- ca.crt, ca.key")
-    print("- server.crt, server.key")
+    print("- certs/ca.crt, certs/ca.key")
+    print("- certs/server.crt, certs/server.key")
     print("- users.json")
     print("- users/<username>/<username>.crt, <username>.key, ca.crt")

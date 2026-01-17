@@ -4,12 +4,12 @@ import ssl
 import json
 import os
 import time
-from user_manager import UserManager
+from .user_manager import UserManager
 import requests
-from tunnel import VpnTunnel  # Pour les requêtes HTTP
+from .tunnel import VpnTunnel  # Pour les requêtes HTTP
 
 class VPNHost:
-    def __init__(self, host='0.0.0.0', port=1194, ca_cert='ca.crt', server_cert='server.crt', server_key='server.key', users_file='users.json'):
+    def __init__(self, host='0.0.0.0', port=1194, ca_cert='certs/ca.crt', server_cert='certs/server.crt', server_key='certs/server.key', users_file='users.json'):
         self.host = host
         self.port = port
         self.ca_cert = ca_cert

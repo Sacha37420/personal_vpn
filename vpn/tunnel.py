@@ -2,9 +2,18 @@ import os
 import sys
 import threading
 import time
-from scapy.all import IP, TCP, UDP, ICMP, send, sniff, Raw
+from scapy.all import IP, TCP, UDP, ICMP, send, sniff, Raw, conf
 import socket
 import ssl
+
+# Configurer scapy pour utiliser L3 sockets (évite le besoin de Npcap sur Windows)
+if sys.platform == "win32":
+    try:
+        from scapy.all import L3RawSocket
+        conf.L3socket = L3RawSocket
+        print("Scapy configuré pour utiliser L3 sockets (pas de Npcap requis)")
+    except ImportError:
+        print("L3RawSocket non disponible, Npcap recommandé pour Windows")
 
 class VpnTunnel:
     def __init__(self, vpn_socket, is_client=True):
@@ -27,6 +36,26 @@ class VpnTunnel:
 
     def client_tunnel(self):
         """Tunneling côté client: intercepter et envoyer les paquets"""
+        print("Tentative de tunneling réseau...")
+        
+        # Vérifier si on peut faire du sniffing
+        try:
+            # Tester si sniff fonctionne
+            test_sniff = sniff(count=1, timeout=1, filter="ip")
+            can_sniff = True
+        except Exception as e:
+            print(f"Sniffing non disponible: {e}")
+            print("Le tunneling réseau complet nécessite Npcap sur Windows")
+            can_sniff = False
+        
+        if not can_sniff:
+            print("Mode dégradé: Seule la connexion SSL VPN est active")
+            print("Pour le tunneling complet, installez Npcap depuis https://npcap.com/")
+            # Garder le thread actif pour maintenir la connexion SSL
+            while self.running:
+                time.sleep(1)
+            return
+
         def packet_handler(pkt):
             if self.running and IP in pkt:
                 # Sérialiser le paquet

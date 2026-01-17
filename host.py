@@ -1,7 +1,4 @@
-from vpn import VPNHost
-from admin import AdminInterface
-from user_manager import UserManager
-from certs import CertificateManager
+from vpn import VPNHost, AdminInterface, UserManager, CertificateManager
 import threading
 
 if __name__ == "__main__":
