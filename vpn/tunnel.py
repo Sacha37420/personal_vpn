@@ -17,7 +17,7 @@ if sys.platform == "win32":
         print("L3RawSocket non disponible, Npcap recommandé pour Windows")
 
 class VpnTunnel:
-    def __init__(self, vpn_socket, is_client=True):
+    def __init__(self, vpn_socket, is_client=True, server_ip=None):
         self.vpn_socket = vpn_socket  # The SSL socket for VPN communication
         self.is_client = is_client
         self.running = False
@@ -26,6 +26,38 @@ class VpnTunnel:
         self.server_packets_sent = 0
         self.disconnected = False
         self.send_failures = 0
+        self.server_ip = server_ip
+        self.nat_table = {}
+
+    def reverse_nat(self):
+        """Sniffer pour les réponses et les envoyer au client via NAT inverse"""
+        while self.running:
+            try:
+                pkts = sniff(count=1, timeout=1, filter=f"ip dst {self.server_ip}")
+                if pkts:
+                    pkt = pkts[0]
+                    if IP in pkt:
+                        # Vérifier si c'est une réponse à NAT
+                        key = None
+                        if TCP in pkt:
+                            key = (self.server_ip, pkt[TCP].sport)
+                        elif UDP in pkt:
+                            key = (self.server_ip, pkt[UDP].sport)
+                        
+                        if key and key in self.nat_table:
+                            # Traduire l'adresse de destination
+                            pkt[IP].dst = self.nat_table[key][0]
+                            if TCP in pkt:
+                                pkt[TCP].dport = self.nat_table[key][1]
+                            elif UDP in pkt:
+                                pkt[UDP].dport = self.nat_table[key][1]
+                            
+                            # Envoyer au client
+                            packet_data = bytes(pkt)
+                            self.vpn_socket.send(packet_data)
+            except Exception as e:
+                if not (hasattr(e, 'errno') and e.errno == errno.EMSGSIZE):
+                    print(f"Erreur reverse NAT: {e}")
 
     def start_tunnel(self):
         """Démarre le tunneling"""
@@ -35,6 +67,9 @@ class VpnTunnel:
             self.client_tunnel()
         else:
             # Serveur: recevoir les paquets et les forwarder
+            # Démarrer le thread reverse NAT
+            self.reverse_thread = threading.Thread(target=self.reverse_nat)
+            self.reverse_thread.start()
             self.server_tunnel()
 
     def stop_tunnel(self):
@@ -109,10 +144,18 @@ class VpnTunnel:
                     print(f"Paquet trop grand ({len(pkt)} bytes), ignoré")
                     continue
                 
-                # Modifier les adresses si nécessaire (NAT simple)
-                if self.is_client:  # Attendre, c'est le serveur
-                    # Pour un vrai VPN, implémenter NAT
-                    pass
+                # NAT: Changer l'IP source pour celle du serveur
+                if IP in pkt:
+                    original_src = pkt[IP].src
+                    pkt[IP].src = self.server_ip
+                    
+                    # Enregistrer le mapping pour les réponses (TCP/UDP)
+                    if TCP in pkt:
+                        key = (self.server_ip, pkt[TCP].dport)
+                        self.nat_table[key] = (original_src, pkt[TCP].dport)
+                    elif UDP in pkt:
+                        key = (self.server_ip, pkt[UDP].dport)
+                        self.nat_table[key] = (original_src, pkt[UDP].dport)
                 
                 # Forwarder le paquet
                 send(pkt, verbose=0)

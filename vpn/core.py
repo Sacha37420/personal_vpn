@@ -20,6 +20,9 @@ class VPNHost:
         # Charger la liste des utilisateurs
         self.user_manager = UserManager(self.users_file)
         
+        # IP du serveur pour NAT
+        self.server_ip = socket.gethostbyname(socket.gethostname())
+        
         # Socket serveur
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.bind((self.host, self.port))
@@ -79,18 +82,21 @@ class VPNHost:
     def handle_client(self, client_socket, username):
         try:
             # Démarrer le tunneling
-            tunnel = VpnTunnel(client_socket, is_client=False)
+            tunnel = VpnTunnel(client_socket, is_client=False, server_ip=self.server_ip)
             tunnel_thread = threading.Thread(target=tunnel.start_tunnel)
             tunnel_thread.start()
             
-            # Garder la connexion ouverte
-            while True:
-                # Pour le mode tunneling, on ne fait qu'attendre
+            # Garder la connexion ouverte tant que le tunnel tourne
+            while tunnel.running:
                 time.sleep(1)
                 
         except Exception as e:
             print(f"Error handling client {username}: {e}")
         finally:
+            tunnel.running = False
+            tunnel_thread.join()
+            if hasattr(tunnel, 'reverse_thread'):
+                tunnel.reverse_thread.join()
             client_socket.close()
             print(f"Connection closed for {username}")
 
