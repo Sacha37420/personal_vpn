@@ -181,21 +181,21 @@ class VPNClient:
                 print("Échec de l'inscription. Connexion impossible.")
                 return
         
-        # Récupérer et supprimer la route par défaut pour forcer le trafic via VPN
-        self.gateway = self.get_default_gateway()
-        if self.gateway:
-            try:
-                subprocess.run(["route", "delete", "0.0.0.0"], check=True)
-                print(f"Route par défaut supprimée (passerelle: {self.gateway}). Trafic forcé via VPN.")
-            except Exception as e:
-                print(f"Erreur suppression route: {e}")
-        else:
-            print("Impossible de récupérer la passerelle. Le trafic normal peut continuer.")
-        
         try:
             self.client_socket.connect((self.host, self.port))
             self.ssl_socket = self.ssl_context.wrap_socket(self.client_socket, server_hostname=self.host)
             print(f"Connected securely as {self.username} to VPN Host at {self.host}:{self.port}")
+            
+            # Maintenant que la connexion est établie, bloquer le trafic normal
+            self.gateway = self.get_default_gateway()
+            if self.gateway:
+                try:
+                    subprocess.run(["route", "delete", "0.0.0.0"], check=True)
+                    print(f"Route par défaut supprimée (passerelle: {self.gateway}). Trafic forcé via VPN.")
+                except Exception as e:
+                    print(f"Erreur suppression route: {e}")
+            else:
+                print("Impossible de récupérer la passerelle. Le trafic normal peut continuer.")
             
             # Démarrer le tunneling
             self.tunnel = VpnTunnel(self.ssl_socket, is_client=True, server_ip=self.host)
