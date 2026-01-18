@@ -45,6 +45,7 @@ class VpnTunnel:
                             key = (self.server_ip, pkt[UDP].sport)
                         
                         if key and key in self.nat_table:
+                            print(f"Reverse NAT: Paquet reçu de {pkt[IP].src}, envoyé au client {self.nat_table[key][0]}")
                             # Traduire l'adresse de destination
                             pkt[IP].dst = self.nat_table[key][0]
                             if TCP in pkt:
@@ -99,6 +100,10 @@ class VpnTunnel:
 
         def packet_handler(pkt):
             if self.running and IP in pkt:
+                # Exclure le trafic vers l'IP du serveur VPN (pour accéder à l'admin directement)
+                if self.server_ip and pkt[IP].dst == self.server_ip:
+                    return  # Ne pas tunneler
+                
                 # Sérialiser le paquet
                 packet_data = bytes(pkt)
                 try:
@@ -133,8 +138,6 @@ class VpnTunnel:
                     break
                 
                 self.server_packets_received += 1
-                if self.server_packets_received % 100 == 0:
-                    print(f"Serveur: {self.server_packets_received} paquets reçus")
                 
                 # Désérialiser le paquet
                 pkt = IP(packet_data)
@@ -160,8 +163,6 @@ class VpnTunnel:
                 # Forwarder le paquet
                 send(pkt, verbose=0)
                 self.server_packets_sent += 1
-                if self.server_packets_sent % 100 == 0:
-                    print(f"Serveur: {self.server_packets_sent} paquets forwardés")
                 
             except Exception as e:
                 if hasattr(e, 'errno') and e.errno == errno.EMSGSIZE:

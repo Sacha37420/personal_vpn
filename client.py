@@ -1,8 +1,10 @@
-from vpn import VPNClient
-import argparse
-import time
-import sys
 import os
+import sys
+import platform
+import subprocess
+import time
+import argparse
+from vpn import VPNClient
 
 def check_and_install_npcap():
     """Vérifie si Npcap est installé et propose l'installation si nécessaire"""
@@ -54,7 +56,45 @@ def check_and_install_npcap():
 
     return True
 
+from vpn import VPNClient
+import argparse
+import time
+import sys
+import os
+import platform
+import subprocess
+import ctypes
+
+def is_admin():
+    """Vérifie si le script tourne en mode administrateur"""
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+
+def run_as_admin():
+    """Relance le script en tant qu'administrateur"""
+    if platform.system() == "Windows":
+        # Windows
+        try:
+            script = sys.executable
+            args = ' '.join(sys.argv)
+            ctypes.windll.shell32.ShellExecuteW(None, "runas", script, args, None, 1)
+            sys.exit(0)  # Quitte le processus actuel
+        except Exception as e:
+            print(f"Erreur lors du relancement en admin: {e}")
+            sys.exit(1)
+    else:
+        print("Mode admin automatique seulement sur Windows")
+        return False
+
 if __name__ == "__main__":
+    # Vérifier les droits admin et relancer si nécessaire
+    if platform.system() == "Windows" and not is_admin():
+        print("Le client VPN nécessite les droits administrateur pour le tunneling réseau.")
+        print("Relancement en mode administrateur...")
+        run_as_admin()
+    
     # Vérifier Npcap avant de continuer
     if not check_and_install_npcap():
         sys.exit(1)
