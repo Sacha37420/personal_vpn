@@ -190,10 +190,15 @@ class VPNClient:
             self.gateway = self.get_default_gateway()
             if self.gateway:
                 try:
+                    # Ajouter une route spécifique pour le serveur VPN
+                    subprocess.run(["route", "add", self.host, self.gateway], check=True)
+                    print(f"Route spécifique ajoutée pour {self.host} via {self.gateway}")
+                    
+                    # Supprimer la route par défaut
                     subprocess.run(["route", "delete", "0.0.0.0"], check=True)
                     print(f"Route par défaut supprimée (passerelle: {self.gateway}). Trafic forcé via VPN.")
                 except Exception as e:
-                    print(f"Erreur suppression route: {e}")
+                    print(f"Erreur modification routes: {e}")
             else:
                 print("Impossible de récupérer la passerelle. Le trafic normal peut continuer.")
             
@@ -214,10 +219,15 @@ class VPNClient:
         # Restaurer la route par défaut
         if self.gateway:
             try:
+                # Supprimer la route spécifique
+                subprocess.run(["route", "delete", self.host], check=True)
+                print(f"Route spécifique supprimée pour {self.host}")
+                
+                # Restaurer la route par défaut
                 subprocess.run(["route", "add", "0.0.0.0", "mask", "0.0.0.0", self.gateway], check=True)
                 print(f"Route par défaut restaurée (passerelle: {self.gateway}).")
             except Exception as e:
-                print(f"Erreur restauration route: {e}")
+                print(f"Erreur restauration routes: {e}")
         
         self.ssl_socket.close()
         print("Connection closed")
