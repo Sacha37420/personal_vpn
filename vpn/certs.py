@@ -11,8 +11,22 @@ class CertificateManager:
         self.ca_cert_file = ca_cert_file
         self.ca_key_file = ca_key_file
 
+    def load_ca(self):
+        """Charge le CA existant s'il existe, sinon retourne None"""
+        if os.path.exists(self.ca_cert_file) and os.path.exists(self.ca_key_file):
+            with open(self.ca_key_file, "rb") as f:
+                ca_key = serialization.load_pem_private_key(f.read(), password=None, backend=default_backend())
+            with open(self.ca_cert_file, "rb") as f:
+                ca_cert = x509.load_pem_x509_certificate(f.read(), backend=default_backend())
+            return ca_key, ca_cert
+        return None, None
+
     def generate_ca_cert(self):
-        """Génère le certificat et la clé de l'Autorité de Certification (CA)"""
+        """Génère le certificat et la clé de l'Autorité de Certification (CA) si elle n'existe pas"""
+        ca_key, ca_cert = self.load_ca()
+        if ca_key and ca_cert:
+            return ca_key, ca_cert
+        
         # Créer le dossier certs s'il n'existe pas
         os.makedirs(os.path.dirname(self.ca_cert_file), exist_ok=True)
         

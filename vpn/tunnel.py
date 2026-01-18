@@ -5,6 +5,7 @@ import time
 from scapy.all import IP, TCP, UDP, ICMP, send, sniff, Raw, conf
 import socket
 import ssl
+import errno
 
 # Configurer scapy pour utiliser L3 sockets (évite le besoin de Npcap sur Windows)
 if sys.platform == "win32":
@@ -20,6 +21,11 @@ class VpnTunnel:
         self.vpn_socket = vpn_socket  # The SSL socket for VPN communication
         self.is_client = is_client
         self.running = False
+        self.client_packets_sent = 0
+        self.server_packets_received = 0
+        self.server_packets_sent = 0
+        self.disconnected = False
+        self.send_failures = 0
 
     def start_tunnel(self):
         """Démarre le tunneling"""
@@ -63,8 +69,16 @@ class VpnTunnel:
                 try:
                     # Envoyer via le VPN
                     self.vpn_socket.send(packet_data)
+                    self.client_packets_sent += 1
+                    if self.client_packets_sent % 100 == 0:
+                        print(f"Client: {self.client_packets_sent} paquets envoyés")
+                    self.send_failures = 0  # reset on success
                 except:
-                    pass  # Ignorer les erreurs d'envoi
+                    self.send_failures += 1
+                    if self.send_failures > 10:
+                        print("Déconnexion de l'hôte VPN détectée (échecs d'envoi répétés)")
+                        self.disconnected = True
+                        self.running = False
 
         # Intercepter tous les paquets IP (nécessite root/admin)
         try:
@@ -83,8 +97,17 @@ class VpnTunnel:
                 if not packet_data:
                     break
                 
+                self.server_packets_received += 1
+                if self.server_packets_received % 100 == 0:
+                    print(f"Serveur: {self.server_packets_received} paquets reçus")
+                
                 # Désérialiser le paquet
                 pkt = IP(packet_data)
+                
+                # Vérifier la taille du paquet (éviter les erreurs "Message too long")
+                if len(pkt) > 65535:  # Taille max IP
+                    print(f"Paquet trop grand ({len(pkt)} bytes), ignoré")
+                    continue
                 
                 # Modifier les adresses si nécessaire (NAT simple)
                 if self.is_client:  # Attendre, c'est le serveur
@@ -93,10 +116,16 @@ class VpnTunnel:
                 
                 # Forwarder le paquet
                 send(pkt, verbose=0)
+                self.server_packets_sent += 1
+                if self.server_packets_sent % 100 == 0:
+                    print(f"Serveur: {self.server_packets_sent} paquets forwardés")
                 
             except Exception as e:
+                if hasattr(e, 'errno') and e.errno == errno.EMSGSIZE:
+                    # Paquet trop grand pour l'interface, ignorer silencieusement
+                    continue
                 print(f"Erreur de tunneling serveur: {e}")
-                break
+                continue  # Continuer au lieu d'arrêter le tunnel
 
 # Fonction pour configurer le routage (nécessite admin)
 def setup_routing(tun_interface, vpn_gateway):

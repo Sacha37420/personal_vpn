@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template_string, redirect
+from flask import Flask, request, jsonify, render_template_string, redirect, send_file
 from .user_manager import UserManager
 from .certs import CertificateManager
 import threading
@@ -93,6 +93,8 @@ class AdminInterface:
                             <a class="download-link" href="/download/{{ user.name }}/cert">Télécharger</a></p>
                             <p><strong>Clé:</strong> {{ user.key_file }} 
                             <a class="download-link" href="/download/{{ user.name }}/key">Télécharger</a></p>
+                            <p><strong>Certificat CA:</strong> ca.crt 
+                            <a class="download-link" href="/download/ca">Télécharger</a></p>
                             <form method="POST" action="/delete_user/{{ user.name }}" style="display:inline;">
                                 <button type="submit" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:3px; cursor:pointer;" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')">Supprimer</button>
                             </form>
@@ -204,18 +206,16 @@ class AdminInterface:
             else:
                 return jsonify({'error': 'Type de fichier invalide'}), 400
             
+            file_path = os.path.abspath(file_path)
             if os.path.exists(file_path):
-                with open(file_path, 'r') as f:
-                    content = f.read()
-                return f"<pre>{content}</pre>"
+                return send_file(file_path, as_attachment=True, download_name=os.path.basename(file_path))
             return jsonify({'error': 'Fichier non trouvé'}), 404
 
         @self.app.route('/download/ca')
         def download_ca():
-            if os.path.exists('certs/ca.crt'):
-                with open('certs/ca.crt', 'r') as f:
-                    content = f.read()
-                return f"<pre>{content}</pre>"
+            ca_path = os.path.abspath('certs/ca.crt')
+            if os.path.exists(ca_path):
+                return send_file(ca_path, as_attachment=True, download_name='ca.crt')
             return "CA non trouvé", 404
 
     def run(self):

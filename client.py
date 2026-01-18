@@ -60,8 +60,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     parser = argparse.ArgumentParser(description='VPN Client')
-    parser.add_argument('username', nargs='?', default='root', help='Nom d\'utilisateur')
-    parser.add_argument('--host', default='localhost', help='Adresse du serveur VPN')
+    parser.add_argument('username', nargs='?', default='lea', help='Nom d\'utilisateur')
+    parser.add_argument('--host', default='192.168.1.8', help='Adresse du serveur VPN')
     args = parser.parse_args()
     
     client = VPNClient(host=args.host, username=args.username)
@@ -73,6 +73,9 @@ if __name__ == "__main__":
     try:
         while True:
             time.sleep(1)  # Garder le programme actif
+            if hasattr(client, 'tunnel') and client.tunnel.disconnected:
+                print("Déconnexion de l'hôte VPN détectée.")
+                break
     except KeyboardInterrupt:
         print("Arrêt du client VPN...")
     finally:
