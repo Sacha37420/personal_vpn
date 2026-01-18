@@ -22,6 +22,7 @@ class VpnTunnel:
         self.is_client = is_client
         self.running = False
         self.client_packets_sent = 0
+        self.client_packets_received = 0
         self.server_packets_received = 0
         self.server_packets_sent = 0
         self.disconnected = False
@@ -37,6 +38,9 @@ class VpnTunnel:
                 if not packet_data:
                     break
                 pkt = IP(packet_data)
+                self.client_packets_received += 1
+                if self.client_packets_received % 10 == 0:  # Plus fréquent pour debug
+                    print(f"Client: {self.client_packets_received} paquets reçus")
                 # Injecter le paquet réponse dans le réseau local
                 send(pkt, verbose=0)
             except Exception as e:
@@ -71,7 +75,36 @@ class VpnTunnel:
             except Exception as e:
                 if not (hasattr(e, 'errno') and e.errno == errno.EMSGSIZE):
                     print(f"Erreur reverse NAT: {e}")
-
+    def reverse_nat(self):
+        """Sniffer pour les réponses et les envoyer au client via NAT inverse"""
+        while self.running:
+            try:
+                pkts = sniff(count=1, timeout=1, filter=f"ip dst {self.server_ip}")
+                if pkts:
+                    pkt = pkts[0]
+                    if IP in pkt:
+                        # Vérifier si c'est une réponse à NAT
+                        key = None
+                        if TCP in pkt:
+                            key = (self.server_ip, pkt[TCP].sport)
+                        elif UDP in pkt:
+                            key = (self.server_ip, pkt[UDP].sport)
+                        
+                        if key and key in self.nat_table:
+                            print(f"Reverse NAT: Paquet reçu de {pkt[IP].src}, envoyé au client {self.nat_table[key][0]}")
+                            # Traduire l'adresse de destination
+                            pkt[IP].dst = self.nat_table[key][0]
+                            if TCP in pkt:
+                                pkt[TCP].dport = self.nat_table[key][1]
+                            elif UDP in pkt:
+                                pkt[UDP].dport = self.nat_table[key][1]
+                            
+                            # Envoyer au client
+                            packet_data = bytes(pkt)
+                            self.vpn_socket.send(packet_data)
+            except Exception as e:
+                if not (hasattr(e, 'errno') and e.errno == errno.EMSGSIZE):
+                    print(f"Erreur reverse NAT: {e}")
     def start_tunnel(self):
         """Démarre le tunneling"""
         self.running = True
