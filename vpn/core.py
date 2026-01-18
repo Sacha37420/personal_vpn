@@ -4,6 +4,7 @@ import ssl
 import json
 import os
 import time
+import subprocess
 from .user_manager import UserManager
 import requests
 from .tunnel import VpnTunnel  # Pour les requêtes HTTP
@@ -106,6 +107,7 @@ class VPNClient:
         self.port = port
         self.username = username
         self.admin_port = admin_port
+        self.gateway = None  # Pour restaurer la route
         
         # Charger les infos utilisateur si existant
         self.user_manager = UserManager()
@@ -128,6 +130,20 @@ class VPNClient:
             self.ssl_context.load_verify_locations(cafile=self.ca_file)
             self.ssl_context.check_hostname = False
             self.ssl_context.verify_mode = ssl.CERT_NONE
+
+    def get_default_gateway(self):
+        """Récupère la passerelle par défaut sur Windows"""
+        try:
+            result = subprocess.run(["route", "print"], capture_output=True, text=True, timeout=5)
+            lines = result.stdout.split('\n')
+            for line in lines:
+                if '0.0.0.0' in line and 'On-link' not in line:
+                    parts = line.split()
+                    if len(parts) >= 3:
+                        return parts[2]  # Adresse de la passerelle
+        except Exception as e:
+            print(f"Erreur récupération passerelle: {e}")
+        return None
 
     def register_user(self):
         """S'inscrire auprès de l'administration pour créer un nouvel utilisateur"""
@@ -165,13 +181,24 @@ class VPNClient:
                 print("Échec de l'inscription. Connexion impossible.")
                 return
         
+        # Récupérer et supprimer la route par défaut pour forcer le trafic via VPN
+        self.gateway = self.get_default_gateway()
+        if self.gateway:
+            try:
+                subprocess.run(["route", "delete", "0.0.0.0"], check=True)
+                print(f"Route par défaut supprimée (passerelle: {self.gateway}). Trafic forcé via VPN.")
+            except Exception as e:
+                print(f"Erreur suppression route: {e}")
+        else:
+            print("Impossible de récupérer la passerelle. Le trafic normal peut continuer.")
+        
         try:
             self.client_socket.connect((self.host, self.port))
             self.ssl_socket = self.ssl_context.wrap_socket(self.client_socket, server_hostname=self.host)
             print(f"Connected securely as {self.username} to VPN Host at {self.host}:{self.port}")
             
             # Démarrer le tunneling
-            self.tunnel = VpnTunnel(self.ssl_socket, is_client=True)
+            self.tunnel = VpnTunnel(self.ssl_socket, is_client=True, server_ip=self.host)
             self.tunnel_thread = threading.Thread(target=self.tunnel.start_tunnel)
             self.tunnel_thread.start()
             
@@ -184,5 +211,13 @@ class VPNClient:
         pass
 
     def close(self):
+        # Restaurer la route par défaut
+        if self.gateway:
+            try:
+                subprocess.run(["route", "add", "0.0.0.0", "mask", "0.0.0.0", self.gateway], check=True)
+                print(f"Route par défaut restaurée (passerelle: {self.gateway}).")
+            except Exception as e:
+                print(f"Erreur restauration route: {e}")
+        
         self.ssl_socket.close()
         print("Connection closed")
