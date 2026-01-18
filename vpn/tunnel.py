@@ -29,7 +29,19 @@ class VpnTunnel:
         self.server_ip = server_ip
         self.nat_table = {}
 
-    def reverse_nat(self):
+    def client_receive(self):
+        """Reçoit les paquets du serveur et les injecte localement"""
+        while self.running:
+            try:
+                packet_data = self.vpn_socket.recv(65535)
+                if not packet_data:
+                    break
+                pkt = IP(packet_data)
+                # Injecter le paquet réponse dans le réseau local
+                send(pkt, verbose=0)
+            except Exception as e:
+                print(f"Erreur réception client: {e}")
+                break
         """Sniffer pour les réponses et les envoyer au client via NAT inverse"""
         while self.running:
             try:
@@ -64,8 +76,12 @@ class VpnTunnel:
         """Démarre le tunneling"""
         self.running = True
         if self.is_client:
-            # Client: intercepter les paquets et les envoyer via VPN
-            self.client_tunnel()
+            # Client: intercepter les paquets sortants et les envoyer via VPN
+            self.client_send_thread = threading.Thread(target=self.client_tunnel)
+            self.client_send_thread.start()
+            # Recevoir les paquets entrants du VPN
+            self.client_receive_thread = threading.Thread(target=self.client_receive)
+            self.client_receive_thread.start()
         else:
             # Serveur: recevoir les paquets et les forwarder
             # Démarrer le thread reverse NAT

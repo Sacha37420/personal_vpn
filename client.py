@@ -89,11 +89,13 @@ def run_as_admin():
         return False
 
 if __name__ == "__main__":
-    # Vérifier les droits admin et relancer si nécessaire
+    # Vérifier les droits admin
     if platform.system() == "Windows" and not is_admin():
-        print("Le client VPN nécessite les droits administrateur pour le tunneling réseau.")
-        print("Relancement en mode administrateur...")
-        run_as_admin()
+        print("❌ Le client VPN nécessite les droits administrateur pour intercepter les paquets réseau.")
+        print("Veuillez relancer ce script en mode administrateur :")
+        print("  - Clic droit sur l'invite de commande → 'Exécuter en tant qu'administrateur'")
+        print("  - Puis : python client.py [username] --host [IP]")
+        sys.exit(1)
     
     # Vérifier Npcap avant de continuer
     if not check_and_install_npcap():
