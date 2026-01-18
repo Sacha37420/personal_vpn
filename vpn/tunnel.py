@@ -38,6 +38,7 @@ class VpnTunnel:
                 if not packet_data:
                     break
                 pkt = IP(packet_data)
+                print(f"Client received: {pkt[IP].src} -> {pkt[IP].dst}")
                 self.client_packets_received += 1
                 if self.client_packets_received % 10 == 0:  # Plus fréquent pour debug
                     print(f"Client: {self.client_packets_received} paquets reçus")
@@ -79,10 +80,10 @@ class VpnTunnel:
         """Sniffer pour les réponses et les envoyer au client via NAT inverse"""
         while self.running:
             try:
-                pkts = sniff(count=1, timeout=1, filter=f"ip dst {self.server_ip}")
+                pkts = sniff(count=1, timeout=1, filter="ip")
                 if pkts:
                     pkt = pkts[0]
-                    if IP in pkt:
+                    if IP in pkt and pkt[IP].dst == self.server_ip:
                         # Vérifier si c'est une réponse à NAT
                         key = None
                         if TCP in pkt:

@@ -23,6 +23,7 @@ class VPNHost:
         
         # IP du serveur pour NAT
         self.server_ip = socket.gethostbyname(socket.gethostname())
+        print(f"Server IP for NAT: {self.server_ip}")
         
         # Socket serveur
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
