@@ -150,10 +150,6 @@ class VpnTunnel:
 
         def packet_handler(pkt):
             if self.running and IP in pkt:
-                # Exclure le trafic vers l'IP du serveur VPN (pour accéder à l'admin directement)
-                if self.server_ip and pkt[IP].dst == self.server_ip:
-                    return  # Ne pas tunneler
-                
                 # Sérialiser le paquet
                 packet_data = bytes(pkt)
                 try:
